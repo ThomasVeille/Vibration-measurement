@@ -37,4 +37,4 @@ To have the information of the vibration, first you need to upload the **MPU-605
 
 Now you can open, the file **vibration_capture_analysis.py** file and edit the COM number with the number you read on the IDE ARDUINO. Also, you need to add folder to save the csv file and the graphs on the **OUTPUT_DIR** variable.
 At the top of the pyton file, you have the different command to install the different need to do the graphs.
-After you can start the script and wait for few minutes. At the end, differents graphs will appears with the analysis. The 
+After you can start the script and wait for few minutes. At the end, differents graphs will appears with the analysis.
