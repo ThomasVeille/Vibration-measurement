@@ -4,7 +4,7 @@ Vibration capture & spectral analysis
 1. Connects to the ESP32 over serial
 2. Sends 'r' to trigger a capture (see matching Arduino sketch)
 3. Reads the CSV block sent back (index,time_us,ax,ay,az)
-4. Saves it to a timestamped .csv file
+4. Saves it to a timestamped .csv file in OUTPUT_DIR
 5. Computes and plots the FFT amplitude spectrum for X, Y and Z
 
 Requirements:
@@ -12,6 +12,7 @@ Requirements:
 """
 
 import csv
+import os
 import sys
 import time
 import datetime
@@ -22,10 +23,13 @@ from scipy.fft import rfft, rfftfreq
 import matplotlib.pyplot as plt
 
 # ---------------- Configuration ----------------
-SERIAL_PORT = "COM9"      # change to your ESP32 port (e.g. "/dev/ttyUSB0" on Linux/Mac)
+SERIAL_PORT = "COM9"      # change to your ESP32 port
 BAUD_RATE = 115200
 SERIAL_TIMEOUT = 2        # seconds, per-line read timeout
 MAX_WAIT_READY = 10       # seconds to wait for the board to say READY
+
+# Folder where CSV files and spectrum plots are saved.
+OUTPUT_DIR = r"C:\Intership\MPU-6050\data"  # change to your preferred folder
 
 
 def wait_for_line(ser, expected, timeout):
@@ -40,7 +44,9 @@ def wait_for_line(ser, expected, timeout):
     return False
 
 
-def capture_to_csv(port=SERIAL_PORT, baud=BAUD_RATE):
+def capture_to_csv(port=SERIAL_PORT, baud=BAUD_RATE, output_dir=OUTPUT_DIR):
+    os.makedirs(output_dir, exist_ok=True)
+
     print(f"Opening {port} @ {baud} baud...")
     with serial.Serial(port, baud, timeout=SERIAL_TIMEOUT) as ser:
         ser.reset_input_buffer()  # clear immediately, before any reset-triggered boot output arrives
@@ -71,13 +77,13 @@ def capture_to_csv(port=SERIAL_PORT, baud=BAUD_RATE):
         print(f"Received {len(rows)} samples.")
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vibration_{timestamp}.csv"
+        filename = os.path.join(output_dir, f"vibration_{timestamp}.csv")
         with open(filename, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(header.split(","))
             writer.writerows(rows)
 
-        print(f"Saved to {filename}")
+        print(f"Saved to {os.path.abspath(filename)}")
         return filename
 
 
@@ -124,11 +130,12 @@ def analyze_csv(filename):
     plt.tight_layout()
     png_name = filename.replace(".csv", "_spectrum.png")
     plt.savefig(png_name, dpi=150)
-    print(f"Plot saved to {png_name}")
+    print(f"Plot saved to {os.path.abspath(png_name)}")
     plt.show()
 
 
 if __name__ == "__main__":
     port = sys.argv[1] if len(sys.argv) > 1 else SERIAL_PORT
-    csv_file = capture_to_csv(port=port)
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else OUTPUT_DIR
+    csv_file = capture_to_csv(port=port, output_dir=output_dir)
     analyze_csv(csv_file)

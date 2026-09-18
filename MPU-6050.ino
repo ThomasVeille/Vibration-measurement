@@ -14,21 +14,32 @@ void selectI2CChannel(uint8_t channel) {
   Wire.endTransmission();
 }
 
-// ---------- Parametres d'acquisition ----------
-#define SAMPLING_FREQ     1000              // Hz vise
-#define DURATION_SECONDS  5                 // duree de capture (5 ou 10s)
+#define SAMPLING_FREQ     1000
+#define DURATION_SECONDS  5
 #define MAX_SAMPLES       (SAMPLING_FREQ * DURATION_SECONDS)
 
-float axBuf[MAX_SAMPLES];
-float ayBuf[MAX_SAMPLES];
-float azBuf[MAX_SAMPLES];
-unsigned long tBuf[MAX_SAMPLES];
+// Allocation dynamique (tas) au lieu de tableaux globaux statiques
+float* axBuf;
+float* ayBuf;
+float* azBuf;
+unsigned long* tBuf;
 
 const unsigned long samplingPeriodUs = round(1000000.0 / SAMPLING_FREQ);
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
+
+  // Allocation sur le tas, une seule fois au demarrage
+  axBuf = new float[MAX_SAMPLES];
+  ayBuf = new float[MAX_SAMPLES];
+  azBuf = new float[MAX_SAMPLES];
+  tBuf  = new unsigned long[MAX_SAMPLES];
+
+  if (!axBuf || !ayBuf || !azBuf || !tBuf) {
+    Serial.println("Allocation memoire echouee, reduisez SAMPLING_FREQ ou DURATION_SECONDS");
+    while (1) delay(10);
+  }
 
   Wire.begin(21, 22);
   Wire.setClock(400000);
@@ -63,6 +74,18 @@ void acquireSamples() {
     axBuf[i] = a.acceleration.x;
     ayBuf[i] = a.acceleration.y;
     azBuf[i] = a.acceleration.z;
+  }
+
+  // Detection basique de capteur fige (I2C instable)
+  bool frozen = true;
+  for (int i = 1; i < MAX_SAMPLES; i++) {
+    if (axBuf[i] != axBuf[0] || ayBuf[i] != ayBuf[0] || azBuf[i] != azBuf[0]) {
+      frozen = false;
+      break;
+    }
+  }
+  if (frozen) {
+    Serial.println("WARNING_SENSOR_FROZEN");
   }
 }
 
